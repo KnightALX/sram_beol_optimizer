@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sram-beol"
+version = "0.1.0"
+description = "SRAM BEOL Interconnect Optimizer for long WordLine (WL) structures"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Proprietary"}
+authors = [
+    {name = "SRAM BEOL Optimizer Team"}
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "pandas>=2.0",
+    "numpy>=1.23",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+sram-beol-optimizer = "sram_beol.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sram_beol*"]
+
+[tool.setuptools.package-data]
+"sram_beol" = ["*.csv", "*.yaml", "data/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q --strict-markers"
+markers = [
+    "integration: marks tests as integration (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow",
+]
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100

@@ -1,0 +1,31 @@
+﻿# Test config: optimize across M1-M5, fix M1 at 0.06/0.54/ABA
+# Demonstrates grouped YAML, fixed_signals, direction-aware stacking (only odd layers with M1)
+
+geometry:
+  length_um: 20.0
+  metals: ["M1", "M2", "M3", "M4", "M5"]
+  max_width_um: 0.060
+  segment_um: 1.0
+  via_pitch_um: 0.5
+
+electrical:
+  driver_r_ohm: 80.0
+  device_r_ohm: 45.0
+  device_c_ff: 0.35
+  via_r_ohm: 8.0
+
+# Fixed M1 (odd direction). Optimizer must include this exactly,
+# and can only stack additional odd layers (M3, M5) per direction rules.
+# Even layers (M2,M4) should be excluded for stacking with M1.
+fixed_signals:
+  - metal: "M1"
+    width: 0.060
+    space: 0.540
+    colors: ["ABA"]
+
+csv_path: "D:/workspace/project/sram_beol/samples/beol_m1m5.csv"
+corner: "typical"
+output_dir: "D:/workspace/project/sram_beol/samples/results_m1m5_fix_m1"
+
+# Limit for quick test
+max_patterns: 500

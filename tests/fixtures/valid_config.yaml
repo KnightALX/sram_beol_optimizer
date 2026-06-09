@@ -1,0 +1,13 @@
+# Valid minimal configuration for unit tests (matches design Section 3 example)
+csv_path: "backmodel.csv"
+corner: "typical"
+length_um: 20.0
+metals: ["M3", "M4"]
+max_width_um: 0.04
+segment_um: 1.0
+via_pitch_um: 0.5
+driver_r_ohm: 80.0
+device_r_ohm: 45.0
+device_c_ff: 0.35
+via_r_ohm: 8.0
+output_dir: "results"

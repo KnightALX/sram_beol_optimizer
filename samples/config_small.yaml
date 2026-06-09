@@ -1,0 +1,30 @@
+# Sample config for SRAM BEOL WL Interconnect Optimizer - small example for testing/demo
+# Supports grouping for clarity.
+
+geometry:
+  length_um: 20.0
+  metals: ["M3", "M4"]
+  max_width_um: 0.040
+  segment_um: 1.0
+  via_pitch_um: 0.5
+
+electrical:
+  driver_r_ohm: 80.0
+  device_r_ohm: 45.0
+  device_c_ff: 0.35
+  via_r_ohm: 8.0
+
+# Example fixed signal: force M3 at specific dimensions (locked).
+# The optimizer will search for best additional stacking (same direction only) on top of this fixed base.
+fixed_signals:
+  - metal: "M3"
+    width: 0.030
+    space: 0.020
+    colors: ["ABA"]
+
+csv_path: "D:/workspace/project/sram_beol/samples/beol_sample.csv"
+corner: "typical"
+output_dir: "D:/workspace/project/sram_beol/samples/results_small"
+
+# Optional: limit for fast demo
+max_patterns: 200
