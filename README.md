@@ -97,6 +97,62 @@ corner: "typical"          # must exist exactly in the CSV
 output_dir: "results"
 ```
 
+### Per-Layer Geometry Constraints
+
+By default, `geometry.max_width_um` is the only width bound applied to all metals.
+To model real PDK rules where each metal has its own (W, S) design window, add a
+`geometry.layer_constraints` section:
+
+```yaml
+geometry:
+  length_um: 20.0
+  metals: ["M1", "M2", "M3", "M4", "M5"]
+  max_width_um: 0.060        # global default for layers without explicit constraint
+  segment_um: 1.0
+  via_pitch_um: 0.5
+  layer_constraints:
+    M1:
+      min_width_um: 0.030
+      max_width_um: 0.060
+    M5:
+      min_width_um: 0.040
+      max_width_um: 0.070     # per-layer max overrides global max_width_um
+      min_space_um: 0.060
+      max_space_um: 0.100
+```
+
+**Resolution rules:**
+
+- All four numeric fields are optional. Missing = unbounded on that side.
+- `max_width_um` per-layer **overrides** the global `geometry.max_width_um` (you can
+  have M5 up to 0.070 um even if global is 0.060 um).
+- Candidates are filtered against the **DB grid** — only (W, S) points actually
+  present in the CSV are emitted.
+- If the constraint range yields zero DB candidates for a metal, a WARNING is logged
+  and that metal is skipped.
+- Metals referenced in `layer_constraints` must exist in `geometry.metals`.
+
+### Multi-Line Fixed Signals
+
+`fixed_signals` is a list of `metal, width, space, colors` dicts. To fix multiple
+layers simultaneously (e.g. a bitline + wordline pair), add multiple entries:
+
+```yaml
+fixed_signals:
+  - metal: "M1"
+    width: 0.030
+    space: 0.030
+    colors: ["ABA"]
+  - metal: "M3"
+    width: 0.030
+    space: 0.030
+    colors: ["ABA"]
+```
+
+All fixed metals must be in the same direction group (all odd M1/M3/M5 or all even
+M2/M4/M6). Mixed-direction fixes log a WARNING but are still allowed; the optimizer
+will union candidate stacking metals across both directions.
+
 See the full design document for the complete schema and rationale.
 
 ## Output

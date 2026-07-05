@@ -1,0 +1,38 @@
+# Dashboard demo config: full M1-M5 exploration, no fixed signals.
+# 仪表板演示配置：M1-M5 全探索，无固定信号约束。
+# This generates ~100+ patterns for a rich dashboard experience.
+
+geometry:
+  length_um: 20.0
+  metals: ["M1", "M2", "M3", "M4", "M5"]
+  max_width_um: 0.060
+  segment_um: 1.0
+  via_pitch_um: 0.5
+  # OPTIONAL: per-layer geometry constraints (uncomment to enable).
+  # Each metal can declare its own (min/max_width_um, min/max_space_um) range;
+  # per-layer max_width_um OVERRIDES the global max_width_um above.
+  # Any layer not listed here uses only the global max_width_um with no other bound.
+  # layer_constraints:
+  #   M1:
+  #     min_width_um: 0.030
+  #     max_width_um: 0.060
+  #     min_space_um: 0.030
+  #     max_space_um: 0.060
+  #   M5:
+  #     min_width_um: 0.040
+  #     max_width_um: 0.070
+  #     min_space_um: 0.060
+  #     max_space_um: 0.100
+
+electrical:
+  driver_r_ohm: 80.0
+  device_r_ohm: 45.0
+  device_c_ff: 0.35
+  via_r_ohm: 8.0
+
+# No fixed signals so all direction groups can be explored freely.
+# 无固定信号，所有方向组可自由探索。
+
+csv_path: "samples/beol_m1m5.csv"
+corner: "typical"
+output_dir: "samples/results_demo"
