@@ -39,7 +39,7 @@ import numpy as np
 
 from .config import WireConfig
 from .db import BEOLModelDB
-from .exceptions import BEOLPatternError
+from .exceptions import BEOLConfigError, BEOLPatternError
 
 logger = logging.getLogger(__name__)
 
@@ -260,11 +260,26 @@ class PatternEnumerator:
                 # Invalid fixed entry; will be ignored or cause later validation failure.
                 continue
 
-        # Determine the direction(s) enforced by fixed signals (all fixed must share direction for a valid pattern).
-        self._fixed_dirs: set[str] = {_get_direction(m) for m in self.fixed_specs}
+        # Determine the direction(s) enforced by fixed signals.
+        # Fail-fast on unknown direction (likely typo like M99).
+        # Warn on mixed directions (allows broad stacking on top).
+        self._fixed_dirs: set[str] = set()
+        for m in self.fixed_specs:
+            d = _get_direction(m)
+            if d == "unknown":
+                raise BEOLConfigError(
+                    f"fixed_signals references metal {m!r} with unknown direction group. "
+                    "Use metals in {M1, M2, ..., M19} (M1/M3/M5... are 'odd', "
+                    "M2/M4/M6... are 'even')."
+                )
+            self._fixed_dirs.add(d)
         if len(self._fixed_dirs) > 1:
-            # Mixed directions in fixed signals: patterns will be invalid unless user fixes consistently.
-            pass  # Let is_valid() catch it; or we could raise here.
+            logger.warning(
+                "fixed_signals contains mixed direction groups %s; "
+                "candidate stacking metals will include any metal whose direction matches "
+                "at least one fixed metal (union of groups).",
+                sorted(self._fixed_dirs),
+            )
 
     def _discover_colors(self, metal: str) -> List[str]:
         """Return the list of allowed color/ShapeColor values that have grid data for this metal+corner.

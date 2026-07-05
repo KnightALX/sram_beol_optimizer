@@ -3,6 +3,7 @@
 覆盖：
 - LayerConstraint 自身行为 (resolve / 默认值 / None 处理)
 - LayerConstraint 边界条件 (min > max 校验)
+- PatternEnumerator.__init__ 对 fixed_signals direction 的校验
 """
 
 from __future__ import annotations
@@ -369,3 +370,55 @@ class TestPatternEnumeratorLayerConstraints:
             candidates = pe._get_ws_candidates("M3")
         assert candidates == []
         assert any("0 valid" in rec.message for rec in caplog.records)
+
+
+class TestFixedSignalsDirectionValidation:
+    """PatternEnumerator.__init__ 必须校验 fixed_signals direction。"""
+
+    def _make_enumerator(self, fixed_signals):
+        """Build a PatternEnumerator with given fixed_signals."""
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[1]
+        csv_path = repo_root / "samples" / "beol_sample.csv"
+        db = BEOLModelDB(csv_path)
+        cfg = WireConfig(
+            csv_path=str(csv_path), corner="typical", length_um=20.0,
+            metals=["M1", "M2", "M3", "M4", "M5"],
+            max_width_um=0.060, segment_um=1.0, via_pitch_um=0.5,
+            driver_r_ohm=80.0, device_r_ohm=45.0, device_c_ff=0.35,
+            via_r_ohm=8.0, output_dir="results",
+            fixed_signals=fixed_signals,
+        )
+        return PatternEnumerator(cfg, db)
+
+    def test_two_odd_layers_fixed_succeeds(self):
+        """fix(M1+M3) - 同方向组 -> 正常构造, 无异常。"""
+        fixed = [
+            {"metal": "M1", "width": 0.030, "space": 0.030, "colors": ["ABA"]},
+            {"metal": "M3", "width": 0.030, "space": 0.030, "colors": ["ABA"]},
+        ]
+        pe = self._make_enumerator(fixed)
+        assert "M1" in pe.fixed_specs
+        assert "M3" in pe.fixed_specs
+        assert pe._fixed_dirs == {"odd"}
+
+    def test_unknown_direction_metal_raises(self):
+        """fix(M99) - 不在方向组中 -> BEOLConfigError。"""
+        from sram_beol.exceptions import BEOLConfigError
+        fixed = [
+            {"metal": "M99", "width": 0.030, "space": 0.030, "colors": ["ABA"]},
+        ]
+        with pytest.raises(BEOLConfigError, match="unknown direction group"):
+            self._make_enumerator(fixed)
+
+    def test_mixed_direction_fixed_warns_but_succeeds(self, caplog):
+        """fix(M1+M2) - 不同方向组 -> WARNING + 构造成功 (candidate union = all)。"""
+        fixed = [
+            {"metal": "M1", "width": 0.030, "space": 0.030, "colors": ["ABA"]},
+            {"metal": "M2", "width": 0.030, "space": 0.030, "colors": ["ABA"]},
+        ]
+        import logging
+        with caplog.at_level("WARNING"):
+            pe = self._make_enumerator(fixed)
+        assert pe._fixed_dirs == {"odd", "even"}
+        assert any("mixed direction" in rec.message for rec in caplog.records)
