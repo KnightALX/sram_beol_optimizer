@@ -125,6 +125,10 @@ class WireConfig:
     max_patterns: int | None = None
     max_layers: int | None = None
 
+    # Per-layer geometry constraints (opt-in YAML section).
+    # When a metal is absent from this dict, the global max_width_um applies with no other bound.
+    layer_constraints: dict[str, "LayerConstraint"] = field(default_factory=dict)
+
     def __post_init__(self) -> None:
         """Run validation immediately. Raises BEOLConfigError on any failure."""
         self._validate()
@@ -200,6 +204,51 @@ class WireConfig:
                 cols = [cols]
             if not isinstance(cols, (list, tuple)) or len(cols) == 0:
                 raise BEOLConfigError(f"fixed_signals[{i}] colors must be non-empty list or string.")
+
+        # Per-layer constraints (optional)
+        if not isinstance(self.layer_constraints, dict):
+            raise BEOLConfigError(
+                f"layer_constraints must be a dict (metal -> LayerConstraint), "
+                f"got {type(self.layer_constraints).__name__}."
+            )
+        metals_set = set(self.metals)
+        for metal, lc in self.layer_constraints.items():
+            if metal not in metals_set:
+                raise BEOLConfigError(
+                    f"layer_constraints references metal {metal} not in "
+                    f"geometry.metals={self.metals}. "
+                    "Either add it to metals or remove the constraint."
+                )
+            for fname in ("min_width_um", "max_width_um", "min_space_um", "max_space_um"):
+                v = getattr(lc, fname, None)
+                if v is not None:
+                    if not isinstance(v, (int, float)):
+                        raise BEOLConfigError(
+                            f"layer_constraints[{metal!r}].{fname} must be numeric, "
+                            f"got {type(v).__name__}."
+                        )
+                    if v < 0:
+                        raise BEOLConfigError(
+                            f"layer_constraints[{metal!r}].{fname} must be >= 0, got {v}."
+                        )
+            if (
+                lc.min_width_um is not None
+                and lc.max_width_um is not None
+                and lc.min_width_um > lc.max_width_um
+            ):
+                raise BEOLConfigError(
+                    f"layer_constraints[{metal!r}]: min_width_um={lc.min_width_um} "
+                    f"> max_width_um={lc.max_width_um}."
+                )
+            if (
+                lc.min_space_um is not None
+                and lc.max_space_um is not None
+                and lc.min_space_um > lc.max_space_um
+            ):
+                raise BEOLConfigError(
+                    f"layer_constraints[{metal!r}]: min_space_um={lc.min_space_um} "
+                    f"> max_space_um={lc.max_space_um}."
+                )
 
         # Reasonable sanity (not hard limits but helpful)
         if self.length_um < 1.0:
