@@ -157,3 +157,110 @@ class TestWireConfigLayerConstraints:
                     }
                 )
             )
+
+
+class TestLayerConstraintsYAMLLoading:
+    """YAML loader 必须把 geometry.layer_constraints 解析为 LayerConstraint dict。"""
+
+    def _write_yaml(self, content: str) -> str:
+        """Helper: write YAML to a temp file and return its path."""
+        import tempfile
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        ) as f:
+            f.write(content)
+            return f.name
+
+    def test_geometry_layer_constraints_parsed(self):
+        """YAML 中 geometry.layer_constraints.M5 -> cfg.layer_constraints['M5']。"""
+        yaml_text = """
+geometry:
+  length_um: 20.0
+  metals: ["M1", "M2", "M3", "M4", "M5"]
+  max_width_um: 0.060
+  segment_um: 1.0
+  via_pitch_um: 0.5
+  layer_constraints:
+    M5:
+      min_width_um: 0.040
+      max_width_um: 0.070
+      min_space_um: 0.060
+      max_space_um: 0.100
+
+electrical:
+  driver_r_ohm: 80.0
+  device_r_ohm: 45.0
+  device_c_ff: 0.35
+  via_r_ohm: 8.0
+
+csv_path: "dummy.csv"
+corner: "typical"
+output_dir: "results"
+"""
+        from pathlib import Path
+        path = self._write_yaml(yaml_text)
+        try:
+            cfg = load_wire_config(path)
+            assert "M5" in cfg.layer_constraints
+            lc = cfg.layer_constraints["M5"]
+            assert lc.min_width_um == 0.040
+            assert lc.max_width_um == 0.070
+            assert lc.min_space_um == 0.060
+            assert lc.max_space_um == 0.100
+        finally:
+            Path(path).unlink()
+
+    def test_geometry_layer_constraints_absent_uses_empty_dict(self):
+        """YAML 不含 layer_constraints 段 -> 默认空 dict, 不报错。"""
+        yaml_text = """
+geometry:
+  length_um: 20.0
+  metals: ["M1"]
+  max_width_um: 0.040
+  segment_um: 1.0
+  via_pitch_um: 0.5
+electrical:
+  driver_r_ohm: 80.0
+  device_r_ohm: 45.0
+  device_c_ff: 0.35
+  via_r_ohm: 8.0
+csv_path: "dummy.csv"
+corner: "typical"
+output_dir: "results"
+"""
+        from pathlib import Path
+        path = self._write_yaml(yaml_text)
+        try:
+            cfg = load_wire_config(path)
+            assert cfg.layer_constraints == {}
+        finally:
+            Path(path).unlink()
+
+    def test_geometry_layer_constraints_invalid_metal_raises(self):
+        """layer_constraints 引用 metals 列表外 metal -> BEOLConfigError。"""
+        yaml_text = """
+geometry:
+  length_um: 20.0
+  metals: ["M1"]
+  max_width_um: 0.040
+  segment_um: 1.0
+  via_pitch_um: 0.5
+  layer_constraints:
+    M9:
+      max_width_um: 0.080
+electrical:
+  driver_r_ohm: 80.0
+  device_r_ohm: 45.0
+  device_c_ff: 0.35
+  via_r_ohm: 8.0
+csv_path: "dummy.csv"
+corner: "typical"
+output_dir: "results"
+"""
+        from pathlib import Path
+        path = self._write_yaml(yaml_text)
+        try:
+            with pytest.raises(BEOLConfigError, match="M9"):
+                load_wire_config(path)
+        finally:
+            Path(path).unlink()

@@ -400,8 +400,38 @@ def load_wire_config(
     data: dict[str, Any] = {}
     for k, v in raw.items():
         if isinstance(v, dict):
-            for kk, vv in v.items():
-                data[kk] = vv
+            # Special handling: geometry.layer_constraints is a nested dict-of-dicts
+            # that should be parsed into LayerConstraint objects.
+            if k == "geometry" and "layer_constraints" in v:
+                lc_raw = v.pop("layer_constraints")
+                # Flatten remaining geometry fields first
+                for kk, vv in v.items():
+                    data[kk] = vv
+                # Parse layer_constraints as dict[str, LayerConstraint]
+                lc_parsed: dict[str, "LayerConstraint"] = {}
+                if not isinstance(lc_raw, dict):
+                    raise BEOLConfigError(
+                        f"geometry.layer_constraints must be a mapping "
+                        f"(metal -> constraint dict), got {type(lc_raw).__name__}."
+                    )
+                for metal, fields in lc_raw.items():
+                    if not isinstance(fields, dict):
+                        raise BEOLConfigError(
+                            f"geometry.layer_constraints[{metal!r}] must be a mapping "
+                            f"with min/max_width_um, min/max_space_um keys, "
+                            f"got {type(fields).__name__}."
+                        )
+                    lc_parsed[str(metal)] = LayerConstraint(
+                        metal=str(metal),
+                        min_width_um=fields.get("min_width_um"),
+                        max_width_um=fields.get("max_width_um"),
+                        min_space_um=fields.get("min_space_um"),
+                        max_space_um=fields.get("max_space_um"),
+                    )
+                data["layer_constraints"] = lc_parsed
+            else:
+                for kk, vv in v.items():
+                    data[kk] = vv
         else:
             data[k] = v
 
