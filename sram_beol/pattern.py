@@ -29,6 +29,8 @@ All code is clean, typed, and documented. DB validity enforced at generation tim
 
 from __future__ import annotations
 
+import logging
+import math
 from dataclasses import dataclass, field
 from itertools import combinations, product
 from typing import Any, Dict, List, Optional, Tuple
@@ -38,6 +40,8 @@ import numpy as np
 from .config import WireConfig
 from .db import BEOLModelDB
 from .exceptions import BEOLPatternError
+
+logger = logging.getLogger(__name__)
 
 # Direction groups for stacking (叠线) rules.
 # Odd layers (M1, M3, ...) share one preferred routing direction.
@@ -284,26 +288,55 @@ class PatternEnumerator:
         return discovered
 
     def _get_ws_candidates(self, metal: str) -> List[Tuple[float, float]]:
-        """Pruned (w, s) list for the metal.
+        """Pruned (w, s) list for the metal, filtered by per-layer constraints.
 
-        1. Get union grid for metal+corner (all shapecolors)
-        2. Filter w <= max_width_um
-        3. Rank candidate pairs by representative Rsh (lowest first) using get_rc_params
+        1. Resolve effective (min_w, max_w, min_s, max_s) from layer_constraints
+           (per-layer override) or global max_width_um (fallback).
+        2. Get union grid for metal+corner (all shapecolors) from DB.
+        3. Filter widths to [min_w, max_w] and spaces to [min_s, max_s].
+        4. Rank candidate pairs by representative Rsh (lowest first) using get_rc_params
            with a viable color for that metal. Falls back gracefully.
-        4. Take top N (or uniform stride sample on ties / no R variation)
-        5. Return sorted unique.
+        5. Take top N (or uniform stride sample on ties / no R variation)
+        6. Return sorted unique.
         """
         corner = self.config.corner
-        max_w = float(self.config.max_width_um)
+        global_max_w = float(self.config.max_width_um)
+
+        # Resolve effective (min_w, max_w, min_s, max_s) from per-layer constraints
+        constraint = self.config.layer_constraints.get(metal)
+        if constraint is None:
+            min_w, max_w = 0.0, global_max_w
+            min_s, max_s = 0.0, float("inf")
+        else:
+            min_w, max_w, min_s, max_s = constraint.resolve(global_max_w)
 
         try:
             w_arr, s_arr = self.db.get_available_grid(metal, corner)
         except Exception:
             return []
 
-        widths = [float(w) for w in w_arr if float(w) <= max_w + 1e-12]
-        spaces = [float(s) for s in s_arr]
+        # Filter widths to [min_w, max_w]
+        widths = [
+            float(w) for w in w_arr
+            if min_w - 1e-12 <= float(w) <= max_w + 1e-12
+        ]
+        # Filter spaces to [min_s, max_s] (inf on max means no upper bound)
+        if math.isinf(max_s):
+            spaces = [float(s) for s in s_arr if float(s) >= min_s - 1e-12]
+        else:
+            spaces = [
+                float(s) for s in s_arr
+                if min_s - 1e-12 <= float(s) <= max_s + 1e-12
+            ]
+
         if not widths or not spaces:
+            logger.warning(
+                "metal=%s: 0 valid (W,S) candidates after layer_constraints filter "
+                "(min_w=%.4f max_w=%.4f min_s=%.4f max_s=%s). DB grid widths=%s, spaces=%s.",
+                metal, min_w, max_w, min_s,
+                "inf" if math.isinf(max_s) else f"{max_s:.4f}",
+                list(w_arr), list(s_arr),
+            )
             return []
 
         all_pairs: List[Tuple[float, float]] = [(w, s) for w in widths for s in spaces]

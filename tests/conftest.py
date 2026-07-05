@@ -3,6 +3,7 @@ Pytest fixtures for sram_beol tests.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -44,3 +45,20 @@ def small_config(sample_csv_path: Path, tmp_path: Path) -> WireConfig:
         "max_patterns": 80,
     })
     return cfg
+
+
+@pytest.fixture(autouse=True)
+def _reset_sram_beol_logger_propagation():
+    """Ensure the sram_beol logger propagates so pytest caplog captures records.
+
+    Some tests (e.g. test_configure_logging_*) call sram_beol.config.configure_logging
+    which sets pkg_logger.propagate = False. Without this fixture, caplog.records
+    misses warnings emitted by sram_beol.* loggers in later tests.
+    """
+    sram_logger = logging.getLogger("sram_beol")
+    original_propagate = sram_logger.propagate
+    sram_logger.propagate = True
+    try:
+        yield
+    finally:
+        sram_logger.propagate = original_propagate

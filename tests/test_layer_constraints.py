@@ -11,6 +11,8 @@ import math
 import pytest
 
 from sram_beol.config import LayerConstraint, WireConfig, load_wire_config
+from sram_beol.db import BEOLModelDB
+from sram_beol.pattern import PatternEnumerator
 from sram_beol.exceptions import BEOLConfigError
 
 
@@ -264,3 +266,106 @@ output_dir: "results"
                 load_wire_config(path)
         finally:
             Path(path).unlink()
+
+
+class TestPatternEnumeratorLayerConstraints:
+    """PatternEnumerator._get_ws_candidates 必须按 layer_constraints 过滤。"""
+
+    def test_no_constraint_uses_global_max_width(self):
+        """无 layer_constraints 时: 所有 DB grid widths <= global max 都进入候选。"""
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[1]
+        csv_path = repo_root / "samples" / "beol_sample.csv"
+        db = BEOLModelDB(csv_path)
+        cfg = WireConfig(
+            csv_path=str(csv_path), corner="typical", length_um=20.0,
+            metals=["M3"], max_width_um=0.060, segment_um=1.0,
+            via_pitch_um=0.5, driver_r_ohm=80.0, device_r_ohm=45.0,
+            device_c_ff=0.35, via_r_ohm=8.0, output_dir="results",
+        )
+        pe = PatternEnumerator(cfg, db)
+        candidates = pe._get_ws_candidates("M3")
+        for w, _ in candidates:
+            assert w <= 0.060 + 1e-9
+
+    def test_per_layer_max_width_overrides_global(self):
+        """per-layer max_width=0.080 覆盖 global 0.060。"""
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[1]
+        csv_path = repo_root / "samples" / "beol_sample.csv"
+        db = BEOLModelDB(csv_path)
+        cfg = WireConfig(
+            csv_path=str(csv_path), corner="typical", length_um=20.0,
+            metals=["M3"], max_width_um=0.060, segment_um=1.0,
+            via_pitch_um=0.5, driver_r_ohm=80.0, device_r_ohm=45.0,
+            device_c_ff=0.35, via_r_ohm=8.0, output_dir="results",
+            layer_constraints={
+                "M3": LayerConstraint(metal="M3", max_width_um=0.080)
+            },
+        )
+        pe = PatternEnumerator(cfg, db)
+        candidates = pe._get_ws_candidates("M3")
+        for w, _ in candidates:
+            assert w <= 0.080 + 1e-9
+
+    def test_per_layer_min_width_filters_out_small_widths(self):
+        """per-layer min_width_um=0.040 -> 候选 W 全部 >= 0.040。"""
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[1]
+        csv_path = repo_root / "samples" / "beol_sample.csv"
+        db = BEOLModelDB(csv_path)
+        cfg = WireConfig(
+            csv_path=str(csv_path), corner="typical", length_um=20.0,
+            metals=["M3"], max_width_um=0.060, segment_um=1.0,
+            via_pitch_um=0.5, driver_r_ohm=80.0, device_r_ohm=45.0,
+            device_c_ff=0.35, via_r_ohm=8.0, output_dir="results",
+            layer_constraints={
+                "M3": LayerConstraint(metal="M3", min_width_um=0.040)
+            },
+        )
+        pe = PatternEnumerator(cfg, db)
+        candidates = pe._get_ws_candidates("M3")
+        for w, _ in candidates:
+            assert w >= 0.040 - 1e-9
+
+    def test_per_layer_min_space_filters_out_small_spaces(self):
+        """per-layer min_space_um=0.040 -> 候选 S 全部 >= 0.040。"""
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[1]
+        csv_path = repo_root / "samples" / "beol_sample.csv"
+        db = BEOLModelDB(csv_path)
+        cfg = WireConfig(
+            csv_path=str(csv_path), corner="typical", length_um=20.0,
+            metals=["M3"], max_width_um=0.060, segment_um=1.0,
+            via_pitch_um=0.5, driver_r_ohm=80.0, device_r_ohm=45.0,
+            device_c_ff=0.35, via_r_ohm=8.0, output_dir="results",
+            layer_constraints={
+                "M3": LayerConstraint(metal="M3", min_space_um=0.040)
+            },
+        )
+        pe = PatternEnumerator(cfg, db)
+        candidates = pe._get_ws_candidates("M3")
+        for _, s in candidates:
+            assert s >= 0.040 - 1e-9
+
+    def test_empty_candidates_after_filter_logs_warning(self, caplog):
+        """layer_constraints 范围排除所有 DB 候选 -> warning 日志。"""
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[1]
+        csv_path = repo_root / "samples" / "beol_sample.csv"
+        db = BEOLModelDB(csv_path)
+        cfg = WireConfig(
+            csv_path=str(csv_path), corner="typical", length_um=20.0,
+            metals=["M3"], max_width_um=0.5, segment_um=1.0,
+            via_pitch_um=0.5, driver_r_ohm=80.0, device_r_ohm=45.0,
+            device_c_ff=0.35, via_r_ohm=8.0, output_dir="results",
+            layer_constraints={
+                "M3": LayerConstraint(metal="M3", min_width_um=0.5, max_width_um=1.0)
+            },
+        )
+        pe = PatternEnumerator(cfg, db)
+        import logging
+        with caplog.at_level("WARNING"):
+            candidates = pe._get_ws_candidates("M3")
+        assert candidates == []
+        assert any("0 valid" in rec.message for rec in caplog.records)
