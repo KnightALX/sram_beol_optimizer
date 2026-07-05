@@ -18,6 +18,7 @@ This is a complete, commercial-grade, class-based Python package with a thin CLI
 - **Commercial-grade outputs**:
   - Detailed Markdown + CSV report with full pattern descriptions, metrics, Pareto membership, and relative improvements.
   - Proof-of-optimality plots: Pareto scatter (every point labeled with the exact "M3(0.040/0.020/ABA+BAB)+M5(...)" description), sensitivity curves, delay profiles along the WL, top-N comparisons.
+  - Optional interactive Dash dashboard on `http://localhost:8050` (opt-in via `--dashboard`; OFF by default so batch / CI runs don't block).
 - **Easy to use**: Thin CLI + clean public Python API. Fully importable.
 
 ## Installation
@@ -42,6 +43,13 @@ sram-beol-optimizer --config config.yaml --output-dir my_results --csv-override 
 
 # Skip plots or reports
 sram-beol-optimizer --config config.yaml --no-plot --no-report
+
+# Launch the interactive Dash dashboard (opens http://localhost:8050, blocks until Ctrl+C).
+# Default: dashboard is OFF (safe for batch / CI / pipelines runs).
+sram-beol-optimizer --config config.yaml --dashboard
+
+# Batch / pipeline usage (recommended — same as just running without --dashboard):
+sram-beol-optimizer --config config.yaml --no-dashboard
 ```
 
 ### Python API (recommended for integration / notebooks)

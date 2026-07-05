@@ -171,11 +171,6 @@ class WirePattern:
                 return False
             if w <= 0.0 or sp < 0.0:
                 return False
-        # Direction rule for stacking (叠线): multi-metal patterns must use metals from the *same* direction group.
-        if len(self.layers) > 1:
-            dirs = {_get_direction(m) for m in self.layers}
-            if len(dirs) > 1:
-                return False
         return True
 
     def key(self) -> Tuple:

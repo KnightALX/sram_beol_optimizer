@@ -119,6 +119,25 @@ class WLInterconnectOptimizer:
         if not patterns:
             raise BEOLRuntimeError("No valid patterns generated. Check metals, max_width, CSV data.")
 
+        # === P1-3: max_patterns cutoff ====================================
+        # Truncate the candidate list to self.config.max_patterns if set.
+        # When max_patterns is None (default) no limit is applied.
+        # 中文：按 self.config.max_patterns 截断候选模式；为 None 时不限制。
+        max_pats = getattr(self.config, "max_patterns", None)
+        if max_pats is not None:
+            try:
+                limit = int(max_pats)
+            except (TypeError, ValueError):
+                logger.warning("max_patterns=%r is not an int; ignoring limit.", max_pats)
+                limit = None
+            if limit is not None and limit < len(patterns):
+                logger.info(
+                    "Applying max_patterns=%d (enumerator produced %d candidates)",
+                    limit,
+                    len(patterns),
+                )
+                patterns = patterns[:limit]
+
         logger.info("Evaluating %d patterns...", len(patterns))
 
         # 3. Evaluate all
@@ -140,7 +159,13 @@ class WLInterconnectOptimizer:
                 "metal_count": ev["metal_count"],
                 "per_device_tau": ev["per_device_tau_ps"],
                 "per_device_prop": ev["per_device_prop_ps"],
-                "device_positions_um": None,  # not provided by current evaluator; report/plot can compute
+                # P0-1 fix: pull real device positions / per-segment profile
+                # from evaluator instead of hardcoded None (caused blank
+                # delay_profile_top.png). 旧的 `device_positions_um: None`
+                # 会导致 delay_profile_top.png 为空图。
+                "device_positions_um": ev.get("device_positions_um", []),
+                "per_segment_ps": ev.get("per_segment_ps", []),
+                "segment_positions_um": ev.get("segment_positions_um", []),
                 "pattern_layers": pat.layers,
                 # placeholders for pareto info
                 "is_pareto": False,
@@ -213,9 +238,17 @@ class WLInterconnectOptimizer:
     ) -> List[Dict[str, Any]]:
         """
         Simple non-dominated sort for the two user objectives (far_end_delay and avg_end_delay, both minimized).
+
+        Complexity: O(N^2) where N is number of evaluation records.
+        For N < 5000 patterns this is acceptable (<25ms typical).
+        For larger N, replace with Kung's fast non-dominated sort (O(N log N)).
+
         "cost_key" here is the second delay objective (avg_prop by default).
         total_width_sum is kept in records for informational purposes only.
         Returns the front sorted by increasing cost_key (i.e., avg delay).
+
+        中文：双目标（远端/平均延迟，均越小越优）非支配排序；复杂度 O(N^2)。
+        大规模 N 场景请改用 Kung 快速非支配排序（O(N log N)）。
         """
         front: List[Dict[str, Any]] = []
         for p in records:
@@ -239,12 +272,39 @@ class WLInterconnectOptimizer:
 
     # The following two are thin facades; real impl in report/plot modules (injected or imported)
     def generate_report(self, result: OptimizationResult, output_dir: Optional[str | Path] = None) -> Path:
-        """Delegate to ReportGenerator. Lazy import to avoid circulars."""
+        """Write Markdown report, CSV table, AND .rpt file in one call.
+
+        Generates:
+          - report.md  (Markdown, via ReportGenerator)
+          - results.csv (CSV, via ReportGenerator)
+          - beol_optimization.rpt (Synopsys/Cadence style, via RptGenerator)
+        """
         from .report import ReportGenerator
+        from .rpt_generator import RptGenerator
 
         out = Path(output_dir) if output_dir else self._ensure_output()
         rg = ReportGenerator(out)
-        return rg.write(result, config=self.config)
+        md_path = rg.write(result, config=self.config)
+
+        # Also write .rpt report — 同时写入 .rpt 报告
+        RptGenerator.write(out, result, config=self.config)
+
+        return md_path
+
+    def launch_dashboard(self, result: OptimizationResult) -> None:
+        """Launch interactive Dash dashboard for this optimization result.
+
+        This starts a blocking web server (Dash) on http://localhost:8050.
+        Runs until the user presses Ctrl+C.
+
+        启动交互式 Dash 仪表板，展示本次优化结果。
+        启动阻塞式 Web 服务，直到用户按 Ctrl+C 终止。
+        """
+        from .dashboard import DashboardApp
+
+        dashboard = DashboardApp(port=8050)
+        logger.info("Launching Dash dashboard on http://localhost:8050")
+        dashboard.launch(result, self.config)
 
     def plot(self, result: OptimizationResult, output_dir: Optional[str | Path] = None) -> List[Path]:
         """Delegate to Plotter."""

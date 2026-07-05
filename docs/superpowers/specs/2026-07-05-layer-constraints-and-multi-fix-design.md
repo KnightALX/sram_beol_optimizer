@@ -27,9 +27,10 @@ Both capabilities are needed for realistic SRAM DTCO studies where different met
   - `min_width_um <= max_width_um`, `min_space_um <= max_space_um` for each entry
   - all numeric values >= 0
 - `PatternEnumerator._get_ws_candidates(metal)` filters DB grid points by the resolved effective constraint:
-  - `min_width_um = layer_constraints[metal].min_width_um or 0.0`
-  - `max_width_um = layer_constraints[metal].max_width_um or config.max_width_um`
-  - `min_space_um / max_space_um` from layer_constraints if specified, else unbounded
+  - `min_width_um = layer_constraints[metal].min_width_um if specified else 0.0`
+  - `max_width_um = layer_constraints[metal].max_width_um if specified else config.max_width_um`
+  - `min_space_um / max_space_um` from layer_constraints if specified, else unbounded (0.0 and +inf respectively)
+  - **Note**: "if specified" means `is not None`, NOT truthiness check (`or 0.0`), so explicitly setting `min_width_um=0.0` is preserved.
 - `PatternEnumerator.__init__` validates `fixed_signals` direction groups and raises `BEOLConfigError` for unknown-direction metals.
 - Mixed-direction `fixed_signals` (e.g. M1 + M2): allowed but log a warning and restrict candidate metals accordingly (current implicit behavior preserved).
 - New pytest module `tests/test_layer_constraints.py`.

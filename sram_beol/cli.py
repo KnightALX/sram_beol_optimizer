@@ -100,6 +100,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable generation of all PNG diagnostic and proof plots.",
     )
 
+    # P1-4: 默认不启动 dashboard，避免批处理被阻塞；显式 --dashboard 才开启。
+    # P1-4: dashboard is OFF by default to avoid blocking batch/CI runs; opt-in via --dashboard.
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help=(
+            "Launch the interactive Dash dashboard after the run (default: OFF). "
+            "The dashboard opens a blocking web server on http://localhost:8050 "
+            "and waits for Ctrl+C, so disable it (or pass --no-dashboard) for "
+            "batch / CI / pipelines scenarios."
+        ),
+    )
+
+    parser.add_argument(
+        "--no-dashboard",
+        action="store_true",
+        help=(
+            "Explicitly disable dashboard launch (this is also the default). "
+            "Provided for symmetry / scripting. Use --dashboard to opt in."
+        ),
+    )
+
     return parser
 
 
@@ -150,6 +172,13 @@ def main(argv: list[str] | None = None) -> int:
             opt.plot(result)
         else:
             logger.info("Plot generation skipped (--no-plot)")
+
+        # Dashboard launch (P1-4: 默认关闭；显式 --dashboard 才开启)。
+        # Dashboard launch (P1-4: OFF by default; opt-in via --dashboard).
+        if args.dashboard and not args.no_dashboard:
+            opt.launch_dashboard(result)
+        else:
+            logger.info("Dashboard skipped (default behavior; pass --dashboard to launch)")
 
         logger.info("sram-beol-optimizer completed successfully")
         return 0
