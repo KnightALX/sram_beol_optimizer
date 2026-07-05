@@ -1,0 +1,18 @@
+D:\workspace\project\sram_beol\run_dashboard.py:6: SyntaxWarning: invalid escape sequence '\w'
+  cd D:\workspace\project\sram_beol
+2026-07-05 23:08:32 [INFO] sram_beol.config: Loaded WireConfig from D:\workspace\project\sram_beol\samples\config_demo.yaml (corner=typical, metals=['M1', 'M2', 'M3', 'M4', 'M5'])
+2026-07-05 23:08:32 [INFO] sram_beol.optimizer: Starting WLInterconnectOptimizer run
+2026-07-05 23:08:32 [INFO] sram_beol.optimizer: Config: WireConfig(corner='typical', length_um=20.0, metals=['M1', 'M2', 'M3', 'M4', 'M5'], output_dir='D:\\workspace\\project\\sram_beol\\samples\\results_demo', ...)
+2026-07-05 23:08:35 [INFO] sram_beol.db: BEOLModelDB loaded 90 rows, 10 groups from D:\workspace\project\sram_beol\samples\beol_m1m5.csv
+2026-07-05 23:08:36 [INFO] sram_beol.optimizer: Evaluating 1098 patterns...
+2026-07-05 23:08:36 [INFO] sram_beol.optimizer: Optimization complete: 1098 patterns, 1 on Pareto, best_far=M1(0.060/0.540/BAB) (far_prop=7.1999), best_avg=M1(0.060/0.540/BAB) (avg_prop=5.1506), time=3.727s
+2026-07-05 23:08:36 [INFO] sram_beol.report: Wrote CSV results to D:\workspace\project\sram_beol\samples\results_demo\results.csv
+2026-07-05 23:08:36 [INFO] sram_beol.report: Wrote markdown report to D:\workspace\project\sram_beol\samples\results_demo\report.md
+2026-07-05 23:08:36 [INFO] sram_beol.rpt_generator: Wrote .rpt report to D:\workspace\project\sram_beol\samples\results_demo\beol_optimization.rpt (6050 bytes)
+2026-07-05 23:08:37 [INFO] sram_beol.optimizer: Launching Dash dashboard on http://localhost:8050
+2026-07-05 23:08:37 [INFO] sram_beol.dashboard.app: Dashboard ready: 1098 patterns, 1 Pareto-optimal. Open http://localhost:8050 in your browser.
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8050
+ * Running on http://192.168.71.8:8050
+Press CTRL+C to quit

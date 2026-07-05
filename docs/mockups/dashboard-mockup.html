@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRAM BEOL Optimizer — Dashboard Mockup</title>
+<style>
+/* ============================================================
+   EDA Industrial Theme — derived from sram_layout_review
+   ============================================================ */
+:root, .theme-dark {
+  --bg-primary: #1a1a2e;    --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;   --bg-hover: #1f4068;
+  --bg-input: #0d1b2a;
+  --border-primary: #2d4a6f; --border-secondary: #1a365d;
+  --border-active: #3b82f6;
+  --text-primary: #e2e8f0;  --text-secondary: #94a3b8;
+  --text-muted: #64748b;    --text-accent: #60a5fa;
+  --status-pass: #22c55e;   --status-fail: #ef4444;
+  --status-warning: #f59e0b; --status-info: #3b82f6;
+  --accent-primary: #3b82f6; --accent-secondary: #06b6d4;
+  --button-primary: #2563eb; --button-hover: #1d4ed8;
+  --graph-bg: #0a0a14;
+  --layer-m1: #60a5fa; --layer-m2: #f97316;
+  --layer-m3: #a855f7; --layer-m4: #22c55e;
+  --layer-m5: #ef4444;
+  --font-mono: "JetBrains Mono","Fira Code","SF Mono","Consolas",monospace;
+  --font-body: "IBM Plex Sans","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+.theme-light {
+  --bg-primary: #f8fafc;    --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;   --bg-hover: #e2e8f0;
+  --bg-input: #ffffff;
+  --border-primary: #cbd5e1; --border-secondary: #e2e8f0;
+  --border-active: #3b82f6;
+  --text-primary: #1e293b;  --text-secondary: #64748b;
+  --text-muted: #94a3b8;    --text-accent: #2563eb;
+  --graph-bg: #f1f5f9;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+/* Header */
+.header-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 16px; height:44px; background:var(--bg-secondary);
+  border-bottom:1px solid var(--border-primary);
+  flex-shrink:0;
+}
+.header-logo {
+  font-family:var(--font-mono); font-size:14px; font-weight:700;
+  color:var(--text-accent); letter-spacing:1px;
+}
+.header-subtitle { font-size:10px; color:var(--text-muted); margin-left:10px; }
+.header-right { display:flex; align-items:center; gap:14px; }
+.header-badge {
+  font-size:11px; color:var(--text-secondary);
+  padding:3px 8px; background:var(--bg-tertiary);
+  border:1px solid var(--border-secondary); border-radius:3px;
+}
+.header-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.header-dot.ok { background:var(--status-pass); }
+.theme-btn {
+  background:var(--bg-tertiary); border:1px solid var(--border-primary);
+  color:var(--text-secondary); padding:4px 10px; border-radius:3px;
+  cursor:pointer; font-size:11px; font-family:var(--font-body);
+}
+.theme-btn:hover { background:var(--bg-hover); }
+
+/* Layout Switcher */
+.layout-switcher {
+  display:flex; gap:0; padding:8px 16px 0; background:var(--bg-primary);
+  border-bottom:1px solid var(--border-secondary);
+}
+.layout-tab {
+  padding:6px 18px; font-size:12px; color:var(--text-muted);
+  background:transparent; border:1px solid transparent;
+  border-bottom:none; cursor:pointer; border-radius:4px 4px 0 0;
+  font-family:var(--font-body);
+}
+.layout-tab.active {
+  color:var(--text-accent); background:var(--bg-secondary);
+  border-color:var(--border-primary);
+}
+
+/* ========== LAYOUT A: Multi-Tab ========== */
+.layout-a { display:none; flex-direction:column; height:calc(100vh - 88px); }
+.layout-a.active-layout { display:flex; }
+.tabbar {
+  display:flex; gap:0; background:var(--bg-secondary);
+  padding:0 16px; border-bottom:1px solid var(--border-primary);
+}
+.tab-btn {
+  padding:8px 20px; font-size:12px; color:var(--text-muted);
+  background:transparent; border:none; border-bottom:2px solid transparent;
+  cursor:pointer; font-family:var(--font-body);
+}
+.tab-btn.active { color:var(--text-accent); border-bottom-color:var(--accent-primary); }
+.tab-btn:hover { color:var(--text-primary); }
+.tab-content { display:none; flex:1; overflow:auto; padding:12px 16px; }
+.tab-content.active { display:block; }
+
+/* ========== LAYOUT B: Scrollable Single-Page ========== */
+.layout-b { display:none; flex-direction:column; height:calc(100vh - 88px); overflow-y:auto; padding:12px 16px; }
+.layout-b.active-layout { display:flex; }
+.section {
+  background:var(--bg-secondary); border:1px solid var(--border-primary);
+  border-radius:4px; margin-bottom:12px; overflow:hidden;
+}
+.section-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 14px; background:var(--bg-tertiary);
+  border-bottom:1px solid var(--border-primary);
+  cursor:pointer; user-select:none;
+}
+.section-title {
+  font-size:12px; font-weight:600; color:var(--text-accent);
+  font-family:var(--font-mono); letter-spacing:0.5px;
+}
+.section-toggle { color:var(--text-muted); font-size:14px; }
+.section-body { padding:14px; }
+
+/* ========== LAYOUT C: Split-Panel ========== */
+.layout-c { display:none; height:calc(100vh - 88px); }
+.layout-c.active-layout { display:flex; }
+.panel-left {
+  width:320px; min-width:320px; background:var(--bg-secondary);
+  border-right:1px solid var(--border-primary);
+  display:flex; flex-direction:column; overflow-y:auto;
+}
+.panel-right {
+  flex:1; display:flex; flex-direction:column; overflow:hidden;
+}
+.panel-section {
+  padding:10px 14px; border-bottom:1px solid var(--border-secondary);
+}
+.panel-section-title {
+  font-size:11px; font-weight:600; color:var(--text-accent);
+  margin-bottom:8px; font-family:var(--font-mono);
+}
+
+/* ========== Shared Components ========== */
+/* Metric Cards Row */
+.metrics-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.metric-card {
+  flex:1; min-width:140px; background:var(--bg-tertiary);
+  border:1px solid var(--border-primary); border-radius:4px;
+  padding:10px 14px;
+}
+.metric-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+.metric-value { font-size:22px; font-weight:700; font-family:var(--font-mono); margin:4px 0; }
+.metric-sub { font-size:10px; color:var(--text-secondary); }
+.metric-card.highlight { border-color:var(--accent-primary); }
+
+/* Table */
+.data-table { width:100%; border-collapse:collapse; font-size:11px; font-family:var(--font-mono); }
+.data-table th {
+  text-align:left; padding:6px 8px; background:var(--bg-tertiary);
+  color:var(--text-accent); font-weight:600; border-bottom:2px solid var(--border-primary);
+  position:sticky; top:0; z-index:1;
+}
+.data-table td {
+  padding:5px 8px; border-bottom:1px solid var(--border-secondary);
+  color:var(--text-secondary);
+}
+.data-table tr:hover td { background:var(--bg-hover); }
+.data-table .row-best { background:rgba(34,197,94,0.08) !important; }
+.data-table .row-pareto td { color:var(--status-warning); }
+
+.badge-pareto {
+  background:rgba(245,158,11,0.2); color:var(--status-warning);
+  padding:1px 5px; border-radius:2px; font-size:10px;
+}
+.badge-best {
+  background:rgba(34,197,94,0.2); color:var(--status-pass);
+  padding:1px 5px; border-radius:2px; font-size:10px;
+}
+
+/* Chart placeholder */
+.chart-box {
+  background:var(--graph-bg); border:1px solid var(--border-secondary);
+  border-radius:4px; display:flex; align-items:center; justify-content:center;
+  flex-direction:column; color:var(--text-muted); font-size:12px;
+}
+.chart-box canvas { width:100%; height:100%; }
+
+/* Panel chart area */
+.chart-area { flex:1; display:flex; flex-direction:column; gap:8px; padding:8px; overflow-y:auto; }
+.chart-area .chart-box { flex:1; min-height:200px; }
+
+/* Best-pattern highlight box */
+.best-box {
+  background:var(--bg-tertiary); border:1px solid var(--status-pass);
+  border-radius:4px; padding:12px; margin-bottom:10px;
+}
+.best-box .best-title {
+  font-size:10px; text-transform:uppercase; color:var(--status-pass);
+  letter-spacing:0.5px; margin-bottom:4px;
+}
+.best-box .best-desc {
+  font-family:var(--font-mono); font-size:13px; color:var(--text-primary);
+}
+
+/* Two-column grid */
+.col2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* Control buttons */
+.btn {
+  background:var(--button-primary); color:#fff; border:none;
+  padding:6px 14px; border-radius:3px; font-size:11px;
+  cursor:pointer; font-family:var(--font-body);
+}
+.btn:hover { background:var(--button-hover); }
+.btn-ghost {
+  background:transparent; color:var(--text-secondary);
+  border:1px solid var(--border-primary); padding:4px 10px;
+  border-radius:3px; font-size:11px; cursor:pointer;
+}
+
+/* Tooltip sim */
+.tooltip-sim { font-size:9px; color:var(--text-muted); font-style:italic; margin-top:4px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background:var(--border-primary); border-radius:3px; }
+</style>
+</head>
+<body class="theme-dark">
+
+<!-- Header -->
+<div class="header-bar">
+  <div style="display:flex;align-items:center;">
+    <span class="header-logo">SRAM BEOL OPTIMIZER</span>
+    <span class="header-subtitle">WL Interconnect Pareto Analysis</span>
+  </div>
+  <div class="header-right">
+    <span class="header-badge">Corner: typical</span>
+    <span class="header-badge">WL Length: 20.0 μm</span>
+    <span class="header-badge">Metals: M1–M5</span>
+    <span class="header-dot ok"></span>
+    <span style="font-size:11px;color:var(--text-muted);">Optimization Complete</span>
+    <button class="theme-btn" onclick="toggleTheme()">☀/☾ Toggle</button>
+  </div>
+</div>
+
+<!-- Layout Switcher -->
+<div class="layout-switcher">
+  <button class="layout-tab active" onclick="switchLayout('a')">Style A — Multi-Tab</button>
+  <button class="layout-tab" onclick="switchLayout('b')">Style B — Single-Page Scroll</button>
+  <button class="layout-tab" onclick="switchLayout('c')">Style C — Split-Panel (Virtuoso-style)</button>
+</div>
+
+<!-- ================================================================ -->
+<!-- LAYOUT A: Multi-Tab                                               -->
+<!-- ================================================================ -->
+<div class="layout-a active-layout" id="layout-a">
+  <div class="tabbar">
+    <button class="tab-btn active" onclick="switchTab('summary')">Summary</button>
+    <button class="tab-btn" onclick="switchTab('pareto')">Pareto Analysis</button>
+    <button class="tab-btn" onclick="switchTab('patterns')">Pattern Explorer</button>
+    <button class="tab-btn" onclick="switchTab('delay')">Delay Profiles</button>
+    <button class="tab-btn" onclick="switchTab('export')">Export .rpt</button>
+  </div>
+
+  <!-- Tab: Summary -->
+  <div class="tab-content active" id="tab-summary">
+    <div class="metrics-row">
+      <div class="metric-card highlight">
+        <div class="metric-label">Best Far-End Delay (prop 0.69τ)</div>
+        <div class="metric-value" style="color:var(--status-pass);">12.84 ps</div>
+        <div class="metric-sub">M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)</div>
+      </div>
+      <div class="metric-card highlight">
+        <div class="metric-label">Best Avg Delay (prop 0.69τ)</div>
+        <div class="metric-value" style="color:var(--status-pass);">5.37 ps</div>
+        <div class="metric-sub">M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Patterns Evaluated</div>
+        <div class="metric-value" style="color:var(--accent-primary);">187</div>
+        <div class="metric-sub">187 candidates, 32 on Pareto</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Optimization Time</div>
+        <div class="metric-value" style="color:var(--text-primary);">2.34 s</div>
+        <div class="metric-sub">Elmore eval @ 20μm WL / 20 segments</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Pareto Front Size</div>
+        <div class="metric-value" style="color:var(--status-warning);">32</div>
+        <div class="metric-sub">Non-dominated (far_prop vs avg_prop)</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:14px;">
+      <div style="flex:1;">
+        <div class="section-header" style="border-radius:4px 4px 0 0;">
+          <span class="section-title">KEY CONCLUSIONS</span>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border-primary);padding:14px;border-radius:0 0 4px 4px;">
+          <div class="best-box">
+            <div class="best-title">★ Best Far-End Delay Pattern</div>
+            <div class="best-desc">M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)</div>
+            <div style="color:var(--text-secondary);font-size:11px;margin-top:4px;">
+              far_prop = 12.84 ps &nbsp;|&nbsp; far_τ = 18.60 ps &nbsp;|&nbsp; total_width = 0.120 μm &nbsp;|&nbsp; Pareto: YES
+            </div>
+          </div>
+          <div class="best-box">
+            <div class="best-title">◆ Best Average Delay Pattern</div>
+            <div class="best-desc">M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)</div>
+            <div style="color:var(--text-secondary);font-size:11px;margin-top:4px;">
+              avg_prop = 5.37 ps &nbsp;|&nbsp; avg_τ = 7.78 ps &nbsp;|&nbsp; total_width = 0.105 μm &nbsp;|&nbsp; Pareto: YES
+            </div>
+          </div>
+          <p style="color:var(--text-muted);font-size:11px;margin-top:8px;">
+            Both optimal patterns use odd-layer stacking (M3+M5). Direction rules enforce same-group stacking only.
+            Wider wires + ABA+BAB dual-color parallel reduce R at the cost of extra C and area.
+          </p>
+        </div>
+      </div>
+      <div class="chart-box" style="width:380px;height:280px;flex-shrink:0;">
+        <canvas id="canvas-summary-pareto"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Pareto -->
+  <div class="tab-content" id="tab-pareto">
+    <div style="display:flex;height:100%;gap:12px;">
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Pareto Front — far_prop vs avg_prop (32 non-dominated points out of 187)</div>
+        <div class="chart-box" style="flex:1;min-height:400px;">
+          <canvas id="canvas-pareto"></canvas>
+        </div>
+      </div>
+      <div style="width:360px;display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:11px;color:var(--text-muted);">Pareto Front — Ranked Table</div>
+        <div style="flex:1;overflow:auto;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:4px;">
+          <table class="data-table" style="font-size:10px;">
+            <thead><tr>
+              <th>#</th><th>Pattern</th><th>far_prop</th><th>avg_prop</th><th>Width</th>
+            </tr></thead>
+            <tbody>
+              <tr class="row-pareto"><td>1</td><td><span class="badge-best">BEST AVG</span> M3(0.035/0.020/ABA+BAB)+...</td><td>13.12</td><td style="color:var(--status-pass);">5.37</td><td>0.105</td></tr>
+              <tr class="row-pareto"><td>2</td><td>M3(0.030/0.025/ABA+BAB)+M5(0.035/0.020/ABA)</td><td>12.96</td><td>5.52</td><td>0.095</td></tr>
+              <tr class="row-pareto row-best"><td>3</td><td><span class="badge-best">BEST FAR</span> M3(0.040/0.020/ABA+BAB)+...</td><td style="color:var(--status-pass);">12.84</td><td>5.68</td><td>0.120</td></tr>
+              <tr class="row-pareto"><td>4</td><td>M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)</td><td>13.45</td><td>5.89</td><td>0.080</td></tr>
+              <tr><td>5</td><td>M3(0.035/0.030/single)+M5(0.035/0.025/BAB)</td><td>14.21</td><td>6.12</td><td>0.070</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Pattern Explorer -->
+  <div class="tab-content" id="tab-patterns">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+      All 187 Evaluated Patterns — sorted by far_prop ascending
+    </div>
+    <div style="overflow:auto;max-height:calc(100vh - 200px);background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:4px;">
+      <table class="data-table">
+        <thead><tr>
+          <th>Rank</th><th>Pattern Description</th><th>far_prop</th><th>avg_prop</th><th>far_τ</th><th>avg_τ</th><th>Width</th><th>L</th><th>Pareto</th><th>Impr.%</th>
+        </tr></thead>
+        <tbody>
+          <tr class="row-pareto row-best"><td>1</td><td>M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA) <span class="badge-best">★FAR</span></td><td style="color:var(--status-pass);">12.84</td><td>5.68</td><td>18.60</td><td>8.23</td><td>0.120</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>+28.4%</td></tr>
+          <tr class="row-pareto"><td>2</td><td>M3(0.030/0.025/ABA+BAB)+M5(0.035/0.020/ABA)</td><td>12.96</td><td>5.52</td><td>18.78</td><td>8.00</td><td>0.095</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>+27.7%</td></tr>
+          <tr class="row-pareto"><td>3</td><td>M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA) <span class="badge-best">◆AVG</span></td><td>13.12</td><td style="color:var(--status-pass);">5.37</td><td>19.01</td><td>7.78</td><td>0.105</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>+26.8%</td></tr>
+          <tr class="row-pareto"><td>4</td><td>M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)</td><td>13.45</td><td>5.89</td><td>19.49</td><td>8.53</td><td>0.080</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>+25.0%</td></tr>
+          <tr><td>5</td><td>M3(0.035/0.030/single)+M5(0.035/0.025/BAB)</td><td>14.21</td><td>6.12</td><td>20.59</td><td>8.87</td><td>0.070</td><td>2</td><td></td><td>+20.7%</td></tr>
+          <tr><td>6</td><td>M3(0.040/0.020/ABA)+M5(0.040/0.025/ABA)</td><td>14.38</td><td>6.25</td><td>20.84</td><td>9.06</td><td>0.080</td><td>2</td><td></td><td>+19.8%</td></tr>
+          <tr><td>7</td><td>M3(0.030/0.025/ABA+BAB)+M4(0.030/0.020/BAB)</td><td>14.55</td><td>6.40</td><td>21.08</td><td>9.28</td><td>0.090</td><td>2</td><td></td><td>+18.9%</td></tr>
+          <tr><td>8</td><td>M3(0.020/0.020/ABA+BAB)+M5(0.025/0.025/BAB)</td><td>15.12</td><td>6.72</td><td>21.91</td><td>9.74</td><td>0.065</td><td>2</td><td></td><td>+15.7%</td></tr>
+          <tr><td>9</td><td>M4(0.040/0.020/ABA+BAB)+M4(only)</td><td>15.89</td><td>7.04</td><td>23.03</td><td>10.20</td><td>0.080</td><td>1</td><td></td><td>+11.4%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab: Delay Profiles -->
+  <div class="tab-content" id="tab-delay">
+    <div style="display:flex;gap:12px;height:100%;">
+      <div class="chart-box" style="flex:1;min-height:450px;">
+        <canvas id="canvas-profile"></canvas>
+      </div>
+      <div style="width:300px;">
+        <div class="best-box" style="margin-bottom:10px;">
+          <div class="best-title">Delay along WL (20 μm)</div>
+          <div style="font-size:10px;color:var(--text-muted);">
+            Elmore propagation delay (0.69·τ) at each of 20 device taps.<br><br>
+            <b>Top curve</b>: M4(0.040/0.020/ABA+BAB) — single layer<br>
+            <b>Middle curve</b>: M3(0.035/0.020/ABA+BAB) — single odd<br>
+            <b>Bottom curve</b>: M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA) ★BEST<br><br>
+            Vertical ticks = device tap positions (every 1.0 μm)
+          </div>
+        </div>
+        <div class="best-box">
+          <div class="best-title">Sensitivity — Width Impact</div>
+          <div class="chart-box" style="height:180px;">
+            <canvas id="canvas-sensitivity"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Export .rpt -->
+  <div class="tab-content" id="tab-export">
+    <div style="display:flex;gap:14px;height:100%;">
+      <div style="flex:1;overflow:auto;">
+        <div class="section-header" style="border-radius:4px 4px 0 0;">
+          <span class="section-title">.RPT PREVIEW — Synopsys/Cadence Style</span>
+        </div>
+        <pre style="background:var(--graph-bg);color:var(--text-primary);padding:14px;border:1px solid var(--border-primary);border-top:none;font-family:var(--font-mono);font-size:11px;line-height:1.6;border-radius:0 0 4px 4px;white-space:pre-wrap;overflow:auto;max-height:calc(100vh - 220px);">=============================================================================
+  SRAM BEOL WL INTERCONNECT OPTIMIZER
+  Report: sram_beol_wl_optimization
+  Generated: 2026-07-05 14:32:18 CST
+  Corner: typical    WL Length: 20.000 um    Segments: 20
+  Candidate Metals: M1 M2 M3 M4 M5
+  Fixed Signals: M1(0.060/0.540/ABA) [LOCKED]
+  BEOL Model DB: D:/workspace/project/sram_beol/samples/beol_m1m5.csv
+=============================================================================
+
+1.0  EXECUTIVE SUMMARY
+-----------------------------------------------------------------------------
+  Total Patterns Evaluated : 187
+  Pareto-Optimal (Non-dominated) : 32
+  Optimization Runtime : 2.34 s
+
+  *********************************************************************
+  *  BEST FAR-END DELAY                                              *
+  *    Pattern : M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)        *
+  *    far_prop = 12.84 ps    far_tau = 18.60 ps                    *
+  *    avg_prop =  5.68 ps    avg_tau =  8.23 ps                    *
+  *    Total Width = 0.120 um    Layers = 2    Pareto = YES          *
+  *********************************************************************
+
+  *********************************************************************
+  *  BEST AVERAGE DELAY                                              *
+  *    Pattern : M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)        *
+  *    avg_prop =  5.37 ps    avg_tau =  7.78 ps                    *
+  *    far_prop = 13.12 ps    far_tau = 19.01 ps                    *
+  *    Total Width = 0.105 um    Layers = 2    Pareto = YES          *
+  *********************************************************************
+
+2.0  PARETO FRONT (far_prop vs avg_prop) — Top 5 Non-dominated
+-----------------------------------------------------------------------------
+  Rank  Pattern                                        far_prop    avg_prop    Width   L
+  ----  ---------------------------------------------  ----------  ----------  ------  -
+    1   M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)     13.12 ps    5.37 ps    0.105   2  ◆AVG
+    2   M3(0.030/0.025/ABA+BAB)+M5(0.035/0.020/ABA)     12.96 ps    5.52 ps    0.095   2
+    3   M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)     12.84 ps    5.68 ps    0.120   2  ★FAR
+    4   M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)         13.45 ps    5.89 ps    0.080   2
+    5   M3(0.030/0.025/ABA+BAB) (single layer)          14.55 ps    6.40 ps    0.060   1
+
+3.0  FULL PATTERN RANKING (sorted by far_prop, top 10/187)
+-----------------------------------------------------------------------------
+  Rank  Pattern                                        far_prop  avg_prop  far_tau  avg_tau   Width  L  Pareto  Impr%
+  ----  ---------------------------------------------  --------  --------  -------  -------  ------  -  ------  -----
+    1   M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)      12.84     5.68    18.60    8.23    0.120   2   YES    28.4 ★FAR
+    2   M3(0.030/0.025/ABA+BAB)+M5(0.035/0.020/ABA)      12.96     5.52    18.78    8.00    0.095   2   YES    27.7
+    3   M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)      13.12     5.37    19.01    7.78    0.105   2   YES    26.8 ◆AVG
+    4   M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)          13.45     5.89    19.49    8.53    0.080   2   YES    25.0
+    5   M3(0.035/0.030/single)+M5(0.035/0.025/BAB)       14.21     6.12    20.59    8.87    0.070   2           20.7
+    ...
+
+4.0  EQUIVALENT RC PARAMETERS (Best Patterns)
+-----------------------------------------------------------------------------
+  Pattern: M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)  ★FAR
+    Metal    W       S       Colors       Rsh      Ctotal
+    ------   ------  ------  -----------  -------  ------
+    M3       0.040   0.020   ABA,BAB      0.245    1.125 fF/um  (g=0.3266)
+    M5       0.040   0.025   ABA          0.142    0.482 fF/um  (g=0.2817)
+    Equiv R_per_um = 1.644 ohm/um   C_per_um = 1.607 fF/um
+    Via (density) R_per_um = 16.000 ohm/um  (via_R=8.0, pitch=0.5)
+
+5.0  CONFIGURATION ECHO
+-----------------------------------------------------------------------------
+  csv_path      : D:/workspace/project/sram_beol/samples/beol_m1m5.csv
+  corner        : typical
+  length_um     : 20.0
+  metals        : ['M1', 'M2', 'M3', 'M4', 'M5']
+  max_width_um  : 0.060
+  segment_um    : 1.0
+  via_pitch_um  : 0.5
+  driver_r_ohm  : 80.0
+  device_r_ohm  : 45.0
+  device_c_ff   : 0.35
+  via_r_ohm     : 8.0
+  fixed_signals : [{'metal': 'M1', 'width': 0.06, 'space': 0.54, 'colors': ['ABA']}]
+
+=============================================================================
+  END OF REPORT — sram_beol_wl_optimization
+=============================================================================</pre>
+      </div>
+      <div style="width:200px;display:flex;flex-direction:column;gap:8px;">
+        <div class="best-box">
+          <div class="best-title">Export Actions</div>
+          <div style="font-size:10px;color:var(--text-muted);margin:8px 0;">
+            .rpt = plain-text EDA report<br>
+            (Synopsys PT / Cadence Innovus style)
+          </div>
+          <button class="btn" style="width:100%;margin-bottom:6px;">Download .rpt</button>
+          <button class="btn-ghost" style="width:100%;margin-bottom:6px;">Copy to Clipboard</button>
+          <button class="btn-ghost" style="width:100%;">Export CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- LAYOUT B: Scrollable Single-Page                                  -->
+<!-- ================================================================ -->
+<div class="layout-b" id="layout-b">
+  <!-- Summary Cards -->
+  <div class="metrics-row">
+    <div class="metric-card highlight">
+      <div class="metric-label">Best Far-End Delay</div>
+      <div class="metric-value" style="color:var(--status-pass);">12.84 ps</div>
+      <div class="metric-sub">M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)</div>
+    </div>
+    <div class="metric-card highlight">
+      <div class="metric-label">Best Avg Delay</div>
+      <div class="metric-value" style="color:var(--status-pass);">5.37 ps</div>
+      <div class="metric-sub">M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)</div>
+    </div>
+    <div class="metric-card"><div class="metric-label">Patterns</div><div class="metric-value" style="color:var(--accent-primary);">187</div><div class="metric-sub">32 Pareto-optimal</div></div>
+    <div class="metric-card"><div class="metric-label">Runtime</div><div class="metric-value">2.34 s</div><div class="metric-sub">Elmore @ 20μm</div></div>
+  </div>
+
+  <!-- Pareto Chart -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title">PARETO FRONT — far_prop vs avg_prop</span>
+      <span class="section-toggle">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="chart-box" style="height:360px;">
+        <canvas id="canvas-b-pareto"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pattern Table -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title">ALL PATTERNS — Ranked by far_prop (187 total)</span>
+      <span class="section-toggle">▼</span>
+    </div>
+    <div class="section-body">
+      <div style="overflow:auto;max-height:320px;">
+        <table class="data-table">
+          <thead><tr><th>Rank</th><th>Pattern</th><th>far_prop</th><th>avg_prop</th><th>Width</th><th>L</th><th>Pareto</th><th>Impr.%</th></tr></thead>
+          <tbody>
+            <tr class="row-pareto row-best"><td>1</td><td>M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA) <span class="badge-best">★FAR</span></td><td style="color:var(--status-pass);">12.84</td><td>5.68</td><td>0.120</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>28.4%</td></tr>
+            <tr class="row-pareto"><td>2</td><td>M3(0.030/0.025/ABA+BAB)+M5(0.035/0.020/ABA)</td><td>12.96</td><td>5.52</td><td>0.095</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>27.7%</td></tr>
+            <tr class="row-pareto"><td>3</td><td>M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA) <span class="badge-best">◆AVG</span></td><td>13.12</td><td style="color:var(--status-pass);">5.37</td><td>0.105</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>26.8%</td></tr>
+            <tr class="row-pareto"><td>4</td><td>M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)</td><td>13.45</td><td>5.89</td><td>0.080</td><td>2</td><td><span class="badge-pareto">YES</span></td><td>25.0%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delay Profiles -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title">DELAY PROFILES — Propagation Delay Along WL</span>
+      <span class="section-toggle">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="chart-box" style="height:280px;">
+        <canvas id="canvas-b-profile"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- .rpt Preview -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title">.RPT EXPORT PREVIEW — Synopsys/cadence Style</span>
+      <span class="section-toggle">▼</span>
+    </div>
+    <div class="section-body">
+      <pre style="background:var(--graph-bg);color:var(--text-primary);padding:12px;font-family:var(--font-mono);font-size:10px;line-height:1.5;max-height:200px;overflow:auto;border-radius:3px;">=============================================================================
+  SRAM BEOL WL INTERCONNECT OPTIMIZER — Report: sram_beol_wl_optimization
+  Corner: typical  |  WL Length: 20.000 um  |  Segments: 20  |  Patterns: 187  |  Pareto: 32
+=============================================================================
+  BEST FAR-END : M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)   far_prop=12.84 ps  ★FAR
+  BEST AVG     : M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)   avg_prop= 5.37 ps  ◆AVG
+=============================================================================</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- LAYOUT C: Split-Panel (Virtuoso-style)                            -->
+<!-- ================================================================ -->
+<div class="layout-c" id="layout-c">
+  <!-- Left Panel: Controls + Table -->
+  <div class="panel-left">
+    <div class="panel-section">
+      <div class="panel-section-title">CONFIGURATION</div>
+      <div style="font-size:10px;color:var(--text-muted);line-height:1.8;">
+        Corner: <b style="color:var(--text-accent);">typical</b><br>
+        Metals: M1 M2 M3 M4 M5<br>
+        Length: 20.0 μm | Seg: 1.0 μm<br>
+        Fixed: M1(0.06/0.54/ABA)<br>
+        Max Width: 0.060 μm
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">BEST PATTERNS</div>
+      <div class="best-box" style="margin-bottom:6px;">
+        <div class="best-title">★ Best Far-End</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--status-pass);">far_prop 12.84 ps</div>
+        <div style="font-size:10px;color:var(--text-secondary);">M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA)</div>
+      </div>
+      <div class="best-box">
+        <div class="best-title">◆ Best Average</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--status-pass);">avg_prop 5.37 ps</div>
+        <div style="font-size:10px;color:var(--text-secondary);">M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA)</div>
+      </div>
+    </div>
+    <div class="panel-section" style="flex:1;overflow:auto;">
+      <div class="panel-section-title">PATTERN TABLE (sorted)</div>
+      <table class="data-table" style="font-size:9px;">
+        <thead><tr><th>#</th><th>Pattern</th><th>far</th><th>avg</th><th>P</th></tr></thead>
+        <tbody>
+          <tr class="row-pareto row-best"><td>1</td><td>M3(0.040/0.020/ABA+BAB)+M5(0.040/0.025/ABA) ★</td><td>12.84</td><td>5.68</td><td><span class="badge-pareto">Y</span></td></tr>
+          <tr class="row-pareto"><td>2</td><td>M3(0.030/0.025/ABA+BAB)+M5(0.035/0.020/ABA)</td><td>12.96</td><td>5.52</td><td><span class="badge-pareto">Y</span></td></tr>
+          <tr class="row-pareto"><td>3</td><td>M3(0.035/0.020/ABA+BAB)+M5(0.035/0.020/ABA) ◆</td><td>13.12</td><td>5.37</td><td><span class="badge-pareto">Y</span></td></tr>
+          <tr><td>4</td><td>M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)</td><td>13.45</td><td>5.89</td><td></td></tr>
+          <tr><td>5</td><td>M3(0.035/0.030/single)+M5(0.035/0.025/BAB)</td><td>14.21</td><td>6.12</td><td></td></tr>
+          <tr><td>6</td><td>M3(0.040/0.020/ABA)+M5(0.040/0.025/ABA)</td><td>14.38</td><td>6.25</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right Panel: Charts -->
+  <div class="chart-area">
+    <div style="display:flex;gap:8px;height:50%;">
+      <div class="chart-box" style="flex:1;">
+        <canvas id="canvas-c-pareto"></canvas>
+      </div>
+      <div class="chart-box" style="flex:1;">
+        <canvas id="canvas-c-profile"></canvas>
+      </div>
+    </div>
+    <div class="chart-box" style="height:50%;">
+      <canvas id="canvas-c-sensitivity"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Layout Switching ==========
+function switchLayout(name) {
+  document.querySelectorAll('.layout-a,.layout-b,.layout-c').forEach(el => el.classList.remove('active-layout'));
+  document.querySelectorAll('.layout-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('layout-'+name).classList.add('active-layout');
+  event.target.classList.add('active');
+}
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.section-toggle');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    toggle.textContent = '▼';
+  } else {
+    body.style.display = 'none';
+    toggle.textContent = '▶';
+  }
+}
+function toggleTheme() {
+  document.body.classList.toggle('theme-light');
+  document.body.classList.toggle('theme-dark');
+  drawAllCharts();
+}
+
+// ========== Chart Drawing (Canvas, mock data) ==========
+function paretoData() {
+  return {
+    all: [
+      {x:12.84,y:5.68,l:'M3(0.040/0.020/ABA+BAB)+M5(...)',best:'far'},
+      {x:12.96,y:5.52,l:'M3(0.030/0.025/ABA+BAB)+M5(...)'},
+      {x:13.12,y:5.37,l:'M3(0.035/0.020/ABA+BAB)+M5(...)',best:'avg'},
+      {x:13.45,y:5.89,l:'M3(0.040/0.025/ABA)+M5(0.040/0.020/ABA)'},
+      {x:13.82,y:5.47,l:'M3(0.035/0.020/ABA+BAB)'},
+      {x:14.21,y:6.12,l:'M3(0.035/0.030/single)+M5(0.035/0.025/BAB)'},
+      {x:14.38,y:6.25,l:'M3(0.040/0.020/ABA)+M5(0.040/0.025/ABA)'},
+      {x:14.55,y:6.40,l:'M3(0.030/0.025/ABA+BAB)+M4(0.030/0.020/BAB)'},
+      {x:15.12,y:6.72,l:'M3(0.020/0.020/ABA+BAB)+M5(0.025/0.025/BAB)'},
+      {x:15.89,y:7.04,l:'M4(0.040/0.020/ABA+BAB)'},
+    ],
+    pareto: [0,1,2,3] // indices
+  };
+}
+
+function profileData() {
+  const xs = Array.from({length:20},(_,i)=> (i+1));
+  return {
+    bestFar: xs.map(x => 0.64*x + 0.012*x*x),
+    bestAvg: xs.map(x => 0.66*x + 0.010*x*x),
+    single: xs.map(x => 0.79*x + 0.020*x*x),
+    xs: xs
+  };
+}
+
+function drawParetoChart(canvasId, data, w, h) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = (w || rect.width) * dpr;
+  canvas.height = (h || rect.height) * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cw = w || rect.width;
+  const ch = h || rect.height;
+  const isLight = document.body.classList.contains('theme-light');
+  const bg = isLight ? '#f1f5f9' : '#0a0a14';
+  const fg = isLight ? '#1e293b' : '#e2e8f0';
+  const mg = isLight ? '#94a3b8' : '#64748b';
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,cw,ch);
+
+  const pad = {t:30,r:20,b:40,l:50};
+  const pw = cw - pad.l - pad.r;
+  const ph = ch - pad.t - pad.b;
+
+  const allX = data.all.map(d=>d.x);
+  const allY = data.all.map(d=>d.y);
+  const xMin = Math.min(...allX)-0.5, xMax = Math.max(...allX)+0.5;
+  const yMin = Math.min(...allY)-0.3, yMax = Math.max(...allY)+0.5;
+
+  function sx(v) { return pad.l + (v-xMin)/(xMax-xMin)*pw; }
+  function sy(v) { return pad.t + ph - (v-yMin)/(yMax-yMin)*ph; }
+
+  // Grid
+  ctx.strokeStyle = mg; ctx.lineWidth=0.3;
+  for (let i=0;i<=5;i++) {
+    let vx = xMin + (xMax-xMin)*i/5;
+    let vy = yMin + (yMax-yMin)*i/5;
+    ctx.beginPath(); ctx.moveTo(sx(vx),pad.t); ctx.lineTo(sx(vx),pad.t+ph); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.l,sy(vy)); ctx.lineTo(pad.l+pw,sy(vy)); ctx.stroke();
+  }
+
+  // All points
+  data.all.forEach((d,i) => {
+    ctx.fillStyle = data.pareto.includes(i) ? '#f59e0b' : '#3b82f6';
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(sx(d.x),sy(d.y),4,0,Math.PI*2); ctx.fill();
+  });
+
+  // Pareto line
+  const paretoSorted = data.pareto.map(i=>data.all[i]).sort((a,b)=>a.x-b.x);
+  ctx.strokeStyle = '#ef4444'; ctx.lineWidth=2; ctx.globalAlpha=0.9;
+  ctx.beginPath();
+  paretoSorted.forEach((d,i) => {
+    if (i===0) ctx.moveTo(sx(d.x),sy(d.y));
+    else ctx.lineTo(sx(d.x),sy(d.y));
+  });
+  ctx.stroke();
+
+  // Best markers
+  data.all.forEach(d => {
+    if (d.best === 'far') {
+      ctx.fillStyle = '#22c55e'; ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(sx(d.x),sy(d.y),8,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font='bold 9px monospace';
+      ctx.fillText('★FAR', sx(d.x)+10, sy(d.y)-6);
+    } else if (d.best === 'avg') {
+      ctx.fillStyle = '#f97316'; ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(sx(d.x),sy(d.y),7,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font='bold 9px monospace';
+      ctx.fillText('◆AVG', sx(d.x)+10, sy(d.y)+4);
+    }
+  });
+
+  // Labels
+  ctx.fillStyle = fg; ctx.font='10px monospace';
+  ctx.textAlign='center';
+  ctx.fillText('far_prop (ps)', pad.l+pw/2, ch-5);
+  ctx.save(); ctx.translate(12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('avg_prop (ps)', 0, 0); ctx.restore();
+  ctx.textAlign='start';
+  ctx.fillStyle = mg; ctx.font='8px monospace';
+  ctx.fillText(`N=${data.all.length} pareto=${data.pareto.length}`, pad.l, pad.t-6);
+}
+
+function drawProfileChart(canvasId, data, w, h) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = (w || rect.width) * dpr;
+  canvas.height = (h || rect.height) * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cw = w || rect.width;
+  const ch = h || rect.height;
+  const isLight = document.body.classList.contains('theme-light');
+  const bg = isLight ? '#f1f5f9' : '#0a0a14';
+  const fg = isLight ? '#1e293b' : '#e2e8f0';
+  const mg = isLight ? '#94a3b8' : '#64748b';
+
+  ctx.fillStyle = bg; ctx.fillRect(0,0,cw,ch);
+  const pad = {t:25,r:20,b:35,l:45};
+  const pw = cw - pad.l - pad.r;
+  const ph = ch - pad.t - pad.b;
+
+  const allVals = [...data.single, ...data.bestFar, ...data.bestAvg];
+  const yMax = Math.max(...allVals)+2, yMin = 0;
+  const xMax = 20;
+
+  function sx(v) { return pad.l + v/xMax*pw; }
+  function sy(v) { return pad.t + ph - (v-yMin)/(yMax-yMin)*ph; }
+
+  ctx.strokeStyle = mg; ctx.lineWidth=0.3;
+  for (let i=0;i<=4;i++) {
+    let vy = yMin + (yMax-yMin)*i/4;
+    ctx.beginPath(); ctx.moveTo(pad.l,sy(vy)); ctx.lineTo(pad.l+pw,sy(vy)); ctx.stroke();
+  }
+
+  function drawLine(xs, ys, color, label) {
+    ctx.strokeStyle=color; ctx.lineWidth=2.2; ctx.beginPath();
+    xs.forEach((x,i)=>{ if(i===0) ctx.moveTo(sx(x),sy(ys[i])); else ctx.lineTo(sx(x),sy(ys[i])); });
+    ctx.stroke();
+    ctx.fillStyle=color; ctx.font='9px monospace';
+    ctx.fillText(label, sx(18), sy(ys[17])-6);
+  }
+
+  drawLine(data.xs, data.single, '#ef4444', 'Single Layer');
+  drawLine(data.xs, data.bestAvg, '#f59e0b', 'Best Avg');
+  drawLine(data.xs, data.bestFar, '#22c55e', 'Best Far');
+
+  // Verticals for taps
+  data.xs.forEach(x => {
+    ctx.strokeStyle=mg; ctx.lineWidth=0.2; ctx.globalAlpha=0.4;
+    ctx.beginPath(); ctx.moveTo(sx(x),pad.t); ctx.lineTo(sx(x),pad.t+ph); ctx.stroke();
+  });
+  ctx.globalAlpha=1;
+
+  ctx.fillStyle=fg; ctx.font='10px monospace'; ctx.textAlign='center';
+  ctx.fillText('Position along WL (μm)', pad.l+pw/2, ch-5);
+  ctx.save(); ctx.translate(12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Delay 0.69τ (ps)', 0, 0); ctx.restore();
+}
+
+function drawSensitivityChart(canvasId, w, h) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = (w || rect.width) * dpr;
+  canvas.height = (h || rect.height) * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const cw = w || rect.width;
+  const ch = h || rect.height;
+  const isLight = document.body.classList.contains('theme-light');
+  const bg = isLight ? '#f1f5f9' : '#0a0a14';
+  const fg = isLight ? '#1e293b' : '#e2e8f0';
+  const mg = isLight ? '#94a3b8' : '#64748b';
+
+  ctx.fillStyle = bg; ctx.fillRect(0,0,cw,ch);
+  const pad = {t:20,r:15,b:30,l:40};
+  const pw = cw - pad.l - pad.r;
+  const ph = ch - pad.t - pad.b;
+
+  const ws = [0.020,0.025,0.030,0.035,0.040];
+  const farVals = ws.map(w => 18 - 110*w);
+  const avgVals = ws.map(w => 9 - 80*w);
+
+  function sx(v,i) { return pad.l + (i/(ws.length-1))*pw; }
+  function sy(v) {
+    const yMin = Math.min(...[...farVals,...avgVals]) - 1;
+    const yMax = Math.max(...[...farVals,...avgVals]) + 1;
+    return pad.t + ph - (v-yMin)/(yMax-yMin)*ph;
+  }
+
+  [farVals, avgVals].forEach((vals, idx) => {
+    const color = idx===0 ? '#3b82f6' : '#f97316';
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    vals.forEach((v,i) => { if(i===0) ctx.moveTo(sx(v,i),sy(v)); else ctx.lineTo(sx(v,i),sy(v)); });
+    ctx.stroke();
+    ws.forEach((w,i) => {
+      ctx.fillStyle=color; ctx.beginPath(); ctx.arc(sx(vals[i],i),sy(vals[i]),3,0,Math.PI*2); ctx.fill();
+    });
+  });
+  ctx.fillStyle='#3b82f6'; ctx.font='8px monospace'; ctx.fillText('far_prop', sx(0,3), sy(farVals[3])-6);
+  ctx.fillStyle='#f97316'; ctx.font='8px monospace'; ctx.fillText('avg_prop', sx(0,2), sy(avgVals[2])+12);
+
+  ctx.fillStyle=fg; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText('Wire Width (μm)', pad.l+pw/2, ch-4);
+  ctx.fillStyle=mg;
+  ws.forEach((w,i) => { ctx.fillText(w.toFixed(3), sx(0,i), ch-4+12); });
+}
+
+function drawAllCharts() {
+  const pd = paretoData();
+  const prof = profileData();
+  drawParetoChart('canvas-summary-pareto', pd, 380, 280);
+  drawParetoChart('canvas-pareto', pd);
+  drawParetoChart('canvas-b-pareto', pd);
+  drawParetoChart('canvas-c-pareto', pd);
+  drawProfileChart('canvas-profile', prof);
+  drawProfileChart('canvas-b-profile', prof);
+  drawProfileChart('canvas-c-profile', prof);
+  drawSensitivityChart('canvas-sensitivity', 280, 180);
+  drawSensitivityChart('canvas-c-sensitivity');
+}
+
+window.addEventListener('resize', drawAllCharts);
+setTimeout(drawAllCharts, 100);
+</script>
+</body>
+</html>

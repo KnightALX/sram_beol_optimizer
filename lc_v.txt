@@ -1,0 +1,39 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.8, pytest-9.0.2, pluggy-1.6.0 -- D:\veighna_studio\python.exe
+cachedir: .pytest_cache
+rootdir: D:\workspace\project\sram_beol
+configfile: pyproject.toml
+plugins: anyio-4.12.0, dash-4.1.0, cov-7.1.0
+collecting ... collected 23 items
+
+tests/test_layer_constraints.py::TestLayerConstraintResolve::test_empty_constraint_uses_global_fallback PASSED [  4%]
+tests/test_layer_constraints.py::TestLayerConstraintResolve::test_partial_override_only_max_width PASSED [  8%]
+tests/test_layer_constraints.py::TestLayerConstraintResolve::test_partial_override_only_min_width PASSED [ 13%]
+tests/test_layer_constraints.py::TestLayerConstraintResolve::test_full_override_returns_user_values PASSED [ 17%]
+tests/test_layer_constraints.py::TestLayerConstraintResolve::test_explicit_zero_min_width_preserved PASSED [ 21%]
+tests/test_layer_constraints.py::TestLayerConstraintResolve::test_frozen_dataclass PASSED [ 26%]
+tests/test_layer_constraints.py::TestWireConfigLayerConstraints::test_default_layer_constraints_is_empty_dict PASSED [ 30%]
+tests/test_layer_constraints.py::TestWireConfigLayerConstraints::test_layer_constraints_parsed_from_dict PASSED [ 34%]
+tests/test_layer_constraints.py::TestWireConfigLayerConstraints::test_layer_constraint_metal_not_in_metals_raises PASSED [ 39%]
+tests/test_layer_constraints.py::TestWireConfigLayerConstraints::test_min_width_exceeds_max_width_raises PASSED [ 43%]
+tests/test_layer_constraints.py::TestWireConfigLayerConstraints::test_min_space_exceeds_max_space_raises PASSED [ 47%]
+tests/test_layer_constraints.py::TestWireConfigLayerConstraints::test_negative_width_raises PASSED [ 52%]
+tests/test_layer_constraints.py::TestLayerConstraintsYAMLLoading::test_geometry_layer_constraints_parsed PASSED [ 56%]
+tests/test_layer_constraints.py::TestLayerConstraintsYAMLLoading::test_geometry_layer_constraints_absent_uses_empty_dict PASSED [ 60%]
+tests/test_layer_constraints.py::TestLayerConstraintsYAMLLoading::test_geometry_layer_constraints_invalid_metal_raises PASSED [ 65%]
+tests/test_layer_constraints.py::TestPatternEnumeratorLayerConstraints::test_no_constraint_uses_global_max_width PASSED [ 69%]
+tests/test_layer_constraints.py::TestPatternEnumeratorLayerConstraints::test_per_layer_max_width_overrides_global PASSED [ 73%]
+tests/test_layer_constraints.py::TestPatternEnumeratorLayerConstraints::test_per_layer_min_width_filters_out_small_widths PASSED [ 78%]
+tests/test_layer_constraints.py::TestPatternEnumeratorLayerConstraints::test_per_layer_min_space_filters_out_small_spaces PASSED [ 82%]
+tests/test_layer_constraints.py::TestPatternEnumeratorLayerConstraints::test_empty_candidates_after_filter_logs_warning PASSED [ 86%]
+tests/test_layer_constraints.py::TestFixedSignalsDirectionValidation::test_two_odd_layers_fixed_succeeds PASSED [ 91%]
+tests/test_layer_constraints.py::TestFixedSignalsDirectionValidation::test_unknown_direction_metal_raises PASSED [ 95%]
+tests/test_layer_constraints.py::TestFixedSignalsDirectionValidation::test_mixed_direction_fixed_warns_but_succeeds PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\..\veighna_studio\Lib\site-packages\pytz\tzinfo.py:27
+  D:\veighna_studio\Lib\site-packages\pytz\tzinfo.py:27: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    _epoch = datetime.utcfromtimestamp(0)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 23 passed, 1 warning in 22.97s ========================
