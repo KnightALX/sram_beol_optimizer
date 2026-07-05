@@ -30,6 +30,42 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
+class LayerConstraint:
+    """Per-layer W/S range constraint for geometry.layer_constraints.
+
+    All fields optional; None = unbounded on that side.
+    Resolution semantics: per-layer overrides global geometry.max_width_um.
+
+    Attributes:
+        metal: Metal layer name (e.g. "M5"). Must exist in WireConfig.metals.
+        min_width_um: Lower bound on wire width (inclusive, um). None = 0.0.
+        max_width_um: Upper bound on wire width (inclusive, um). None = global fallback.
+        min_space_um: Lower bound on wire space (inclusive, um). None = 0.0.
+        max_space_um: Upper bound on wire space (inclusive, um). None = +infinity.
+    """
+
+    metal: str
+    min_width_um: Optional[float] = None
+    max_width_um: Optional[float] = None
+    min_space_um: Optional[float] = None
+    max_space_um: Optional[float] = None
+
+    def resolve(
+        self, fallback_max_width_um: float
+    ) -> tuple[float, float, float, float]:
+        """Resolve to effective (min_w, max_w, min_s, max_s) for DB grid filtering."""
+        min_w = 0.0 if self.min_width_um is None else float(self.min_width_um)
+        max_w = (
+            float(fallback_max_width_um)
+            if self.max_width_um is None
+            else float(self.max_width_um)
+        )
+        min_s = 0.0 if self.min_space_um is None else float(self.min_space_um)
+        max_s = float("inf") if self.max_space_um is None else float(self.max_space_um)
+        return min_w, max_w, min_s, max_s
+
+
+@dataclass(frozen=True)
 class WireConfig:
     """Frozen dataclass holding all optimization parameters.
 
