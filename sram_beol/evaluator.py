@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from .exceptions import BEOLConfigError, BEOLPatternError, BEOLComputationError
 from .pattern import WirePattern
@@ -111,7 +111,14 @@ class ElmoreLadderEvaluator:
         self._validate_params()
 
     def _validate_params(self) -> None:
-        """Validate all constructor parameters are physically sensible."""
+        """Validate all constructor parameters are physically sensible.
+
+        Resistances (driver/device/via) may be 0 (degenerate model allowed for tests).
+        Lengths, pitches and device C must be > 0.
+
+        验证所有构造参数物理合理：电阻允许 0（测试退化模型可接受），
+        长度/间距/器件 C 必须 > 0。
+        """
         params = {
             "driver_r_ohm": self.driver_r_ohm,
             "device_r_ohm": self.device_r_ohm,
@@ -136,38 +143,6 @@ class ElmoreLadderEvaluator:
             raise BEOLConfigError("corner must be a non-empty string")
         if self.db is None:
             raise BEOLConfigError("db (BEOLModelDB-like) is required for RC queries")
-
-        # also run the named method for full checks (kept for override / subclassing)
-        self._validate_params()
-
-    def _validate_params(self) -> None:
-        """Validate all constructor parameters are physically sensible.
-
-        Resistances (driver/device/via) may be 0 (degenerate model allowed for tests).
-        Lengths, pitches and device C must be > 0.
-        """
-        params = {
-            "driver_r_ohm": self.driver_r_ohm,
-            "device_r_ohm": self.device_r_ohm,
-            "device_c_ff": self.device_c_ff,
-            "via_r_ohm": self.via_r_ohm,
-            "length_um": self.length_um,
-            "segment_um": self.segment_um,
-            "via_pitch_um": self.via_pitch_um,
-        }
-        for name, val in params.items():
-            if val is None:
-                raise BEOLConfigError(f"{name} is required")
-            if not isinstance(val, (int, float)):
-                raise BEOLConfigError(f"{name} must be numeric, got {type(val)}")
-            if name in ("driver_r_ohm", "device_r_ohm", "via_r_ohm"):
-                if val < 0.0:
-                    raise BEOLConfigError(f"{name} must be >= 0, got {val}")
-            else:
-                if val <= 0.0:
-                    raise BEOLConfigError(f"{name} must be > 0, got {val}")
-        if not self.corner or not str(self.corner).strip():
-            raise BEOLConfigError("corner must be a non-empty string")
 
     def _compute_num_segments(self) -> int:
         """N ≈ length / segment ; always at least 1 device/segment."""
@@ -296,7 +271,11 @@ class ElmoreLadderEvaluator:
             taus.append(tau)
         return taus
 
-    def evaluate(self, pattern: WirePattern) -> Dict[str, Any]:
+    def evaluate(
+        self,
+        pattern: WirePattern,
+        device_positions: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
         """Evaluate the given pattern and return delay metrics + equiv parameters.
 
         Returns dict with:
@@ -305,8 +284,19 @@ class ElmoreLadderEvaluator:
             total_metal_width_sum, metal_count,
             near_tau_ps, far_tau_ps, avg_tau_ps,
             near_prop_ps, far_prop_ps, avg_prop_ps,
-            per_device_tau_ps, per_device_prop_ps
+            per_device_tau_ps, per_device_prop_ps,
+            per_segment_ps, segment_positions_um,
+            device_positions_um
         All delays in picoseconds (ps).
+        Positions are in micrometers (um).
+
+        P0-1 fix: also returns per-segment Elmore tau / prop delay and the
+        physical segment-end positions along the WL, so the plot module can
+        draw the full delay profile without depending on placeholder None.
+
+        P0-1 修复：同时返回每个 segment 的 Elmore tau / 传播延迟，
+        以及沿 WL 的 segment 末端物理位置，以便 plot 模块绘制完整
+        的延迟曲线，不再依赖占位符 None。
         """
         if not isinstance(pattern, WirePattern):
             raise BEOLPatternError("evaluate expects a WirePattern instance")
@@ -343,6 +333,40 @@ class ElmoreLadderEvaluator:
         far_prop = props_ps[-1]
         avg_prop = sum(props_ps) / len(props_ps)
 
+        # -----------------------------------------------------------------
+        # P0-1 fix: build per-segment Elmore tau + propagation delay and the
+        # physical segment-end positions (i from 1..N, spacing = segment_um).
+        # device tap positions default to segment ends (one device per
+        # segment) unless caller passes an explicit list.
+        # -----------------------------------------------------------------
+        # 累积 r_cum / c_cum 沿 WL 阶梯推进，记录每段 Elmore 时间常数。
+        r_cum = float(self.driver_r_ohm)
+        c_cum = 0.0
+        segment_tau_ps: List[float] = []
+        segment_positions_um: List[float] = []
+        for i in range(1, n + 1):
+            # 第 i 段在 Elmore 模型下加上 r_stage 后，再加 c_tap 到地
+            r_cum += r_stage
+            c_cum += c_tap
+            tau_raw_seg = r_cum * c_cum  # Elmore tau 至本段末端
+            segment_tau_ps.append(tau_raw_seg * RC_PRODUCT_TO_PS)
+            segment_positions_um.append(float(i) * float(self.segment_um))
+
+        # 段末端 prop delay (0.69 * tau)
+        per_segment_ps: List[float] = [t * PROP_FACTOR for t in segment_tau_ps]
+
+        # device tap 物理位置：默认每段末端一个 device，
+        # 或者直接采用调用方传入的 device_positions (list[float])
+        if device_positions is None:
+            device_positions_um: List[float] = list(segment_positions_um)
+        else:
+            if len(device_positions) != len(taus_ps):
+                raise BEOLComputationError(
+                    f"device_positions length ({len(device_positions)}) must match "
+                    f"num_segments ({len(taus_ps)})"
+                )
+            device_positions_um = [float(p) for p in device_positions]
+
         result: Dict[str, Any] = {
             "description": pattern.description,
             "pattern_key": pattern.key(),
@@ -360,6 +384,9 @@ class ElmoreLadderEvaluator:
             "avg_prop_ps": avg_prop,
             "per_device_tau_ps": taus_ps,
             "per_device_prop_ps": props_ps,
+            "per_segment_ps": per_segment_ps,
+            "segment_positions_um": segment_positions_um,
+            "device_positions_um": device_positions_um,
         }
         return result
 

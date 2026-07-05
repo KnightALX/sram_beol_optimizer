@@ -181,7 +181,14 @@ class Plotter:
         return self._savefig(fig, "sensitivity_width.png")
 
     def plot_delay_profiles(self, result: OptimizationResult, top_n: int = 5) -> Path:
-        """Delay profile along WL (prop delay vs position) for best + other top patterns. Vertical tap lines."""
+        """Delay profile along WL (prop delay vs position) for best + other top patterns.
+
+        P0-1 fix: read correct keys from optimizer records:
+          - per_segment_ps / segment_positions_um   (continuous curve)
+          - per_device_prop_ps / device_positions_um (scatter at taps)
+        If both lists are empty for a candidate we render a "no profile data"
+        text in the figure instead of silently dropping it / crashing.
+        """
         best_far = result.best_far_end
         best_avg = result.best_avg
 
@@ -204,30 +211,72 @@ class Plotter:
         fig, ax = plt.subplots(figsize=(11, 6))
 
         colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+        any_plotted = False
         for idx, rec in enumerate(candidates[:top_n]):
-            pos = rec.get("device_positions_um", [])
-            prof = rec.get("per_device_prop", [])
-            if not pos or not prof:
-                continue
             label = rec["description"]
             if rec is best_far or rec["description"] == best_far["description"]:
                 label = "★ BEST FAR: " + label
             elif rec is best_avg or rec["description"] == best_avg["description"]:
                 label = "◆ BEST AVG: " + label
-            ax.plot(pos, prof, marker=".", linewidth=1.6, markersize=3.5, label=label[:70], color=colors[idx % len(colors)], alpha=0.92)
 
-            # Vertical lines at device taps (use the positions)
-            for p in pos:
-                ax.axvline(p, color=colors[idx % len(colors)], alpha=0.08, linewidth=0.6)
+            color = colors[idx % len(colors)]
+
+            # Continuous per-segment delay curve (P0-1: read correct keys)
+            seg_pos = rec.get("segment_positions_um", []) or []
+            seg_prop = rec.get("per_segment_ps", []) or []
+            # Device tap scatter (P0-1: read correct keys)
+            dev_pos = rec.get("device_positions_um", []) or []
+            dev_prop = rec.get("per_device_prop_ps", []) or []
+
+            if not seg_pos or not seg_prop:
+                # Fall back to device taps if segments missing (e.g., older record)
+                if dev_pos and dev_prop:
+                    seg_pos, seg_prop = dev_pos, dev_prop
+
+            if (not seg_pos or not seg_prop) and (not dev_pos or not dev_prop):
+                # no profile data: don't crash, just skip
+                continue
+
+            # continuous curve along the WL
+            if seg_pos and seg_prop:
+                ax.plot(
+                    seg_pos, seg_prop,
+                    linewidth=1.8, color=color, alpha=0.9,
+                    label=label[:70],
+                )
+                any_plotted = True
+
+            # device tap scatter overlay
+            if dev_pos and dev_prop and len(dev_pos) == len(dev_prop):
+                ax.scatter(
+                    dev_pos, dev_prop,
+                    s=22, marker="o", color=color,
+                    edgecolors="black", linewidths=0.4, alpha=0.85,
+                    zorder=3,
+                )
+
+            # Faint vertical tap lines for visual reference
+            for p in (dev_pos or seg_pos):
+                ax.axvline(p, color=color, alpha=0.06, linewidth=0.6)
+
+        if not any_plotted:
+            # Avoid a silent empty plot.  Show a clear "no profile data" hint.
+            ax.text(
+                0.5, 0.5,
+                "no profile data\n(device_positions_um / per_segment_ps empty)",
+                transform=ax.transAxes, ha="center", va="center",
+                fontsize=12, color="gray",
+            )
 
         ax.set_xlabel("Position along WL (um)")
-        ax.set_ylabel("Cumulative propagation delay estimate (0.69 * τ) [arb units]")
-        ax.set_title("Delay Profiles Along WordLine (device taps shown as vertical lines)\nLower curves = faster at that tap")
+        ax.set_ylabel("Propagation delay (0.69 * τ) [ps]")
+        ax.set_title(
+            "Delay Profiles Along WordLine\n"
+            "(continuous curve = per-segment Elmore; markers = device taps)\n"
+            "Lower curves = faster at that tap"
+        )
         ax.legend(loc="upper left", fontsize=7, framealpha=0.9)
         ax.grid(True, alpha=0.25)
-
-        # Mark far end
-        ax.axvline(result.config.length_um, color="red", linestyle="--", alpha=0.5, label="WL end")
         return self._savefig(fig, "delay_profile_top.png")
 
     def plot_top_n_comparison(self, result: OptimizationResult, n: int = 8) -> Path:
